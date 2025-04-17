@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Safe Space</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+<script src="plugins/sample-mood-wheel.js"></script>
+<script src="plugins/sample-voice-input.js"></script>
+</head>
+<body>
+<div id="wrapper">
+  <div id="privacy"></div>
+  <div id="messages"></div>
+  <input id="input" placeholder="Type your message..." autocomplete="off"/>
+  <button id="send" onclick="sendMessage()">Send</button>
+  <div>
+    <span id="download" onclick="downloadSession()">⬇️ Download Session</span>
+    <span id="logout" onclick="logout()">🗑 End & Clear Session</span>
+  </div>
+  <div style="margin-top:4px;font-size:88%;color:#999;">Powered by Toqan AI</div>
+</div>
+<script>
+async function loadPrivacy() {
+    let rv = await fetch('/privacy');
+    let text = await rv.text();
+    document.getElementById('privacy').innerHTML = `<b>🔐 Safe Space:</b> ${text}`;
+}
+function escapeHtml(text) {
+    var map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',''':'&#039;'};
+    return text.replace(/[&<>"']/g,m=>map[m]);
+}
+function addMessage(text, sender) {
+    let d = document.createElement('div');
+    d.className = 'message ' + sender;
+    d.innerHTML = (sender === 'user' ? "🫂 <b>You:</b> " : "🤖 <b>AI:</b> ") +
+                  (sender === 'user' ? escapeHtml(text) : text);
+    document.getElementById('messages').appendChild(d);
+    document.getElementById('messages').scrollTop = 99999;
+}
+async function sendMessage() {
+    const input = document.getElementById('input');
+    const text = input.value.trim();
+    if (!text) return;
+    addMessage(text, 'user');
+    input.value = '';
+    let resp = await fetch('/message', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ message:text })
+    });
+    const data = await resp.json();
+    addMessage(data.reply, 'ai');
+}
+document.getElementById('input').addEventListener('keydown', e=>{
+    if (e.key === 'Enter') sendMessage();
+});
+async function loadHistory() {
+    let data = await (await fetch('/history')).json();
+    document.getElementById('messages').innerHTML = '';
+    data.history.forEach(m => addMessage(m.message, m.sender));
+}
+async function downloadSession() {
+    let blob = await fetch('/download').then(r => r.blob());
+    let url = window.URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = "ai_safe_session.txt";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ document.body.removeChild(a); window.URL.revokeObjectURL(url); },150);
+}
+async function logout() {
+    await fetch('/logout', {method:'POST'});
+    document.getElementById('messages').innerHTML = '';
+    addMessage('Your session has been cleared.', 'ai');
+}
+window.onload = function(){
+    loadPrivacy();
+    loadHistory();
+}
+</script>
+</body>
+</html>

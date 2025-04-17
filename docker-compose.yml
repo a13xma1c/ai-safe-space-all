@@ -1,0 +1,15 @@
+version: '3'
+services:
+  backend:
+    build: ./backend
+    environment:
+      - FERNET_KEY=yourkeyhere
+      - SESSION_SECRET=yourflasksecret
+    ports:
+      - 5000:5000
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    ports:
+      - 8080:80
